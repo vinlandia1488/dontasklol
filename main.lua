@@ -1,28 +1,23 @@
--- Azov License Key System
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
--- Use script_key defined at the top, or fallback to Key injected from Program.cs
 local CurrentKey = script_key or Key or _G.Key
 
--- GitHub URL containing raw text with valid keys (one per line)
 local LicenseKeysURL = "https://raw.githubusercontent.com/vinlandia1488/dontasklol/refs/heads/main/keys.txt"
 
-local function LogToDiscord(status, extraInfo)
+local function LogToDiscord(status, extraInfo, isCritical)
     local webhook_url = "https://discord.com/api/webhooks/1477266461809705052/rttkd_D7hxOYea4ogQD01YCAg2tkWoWecrSui3UKjJ7sKsi0VXKN42JnVzpO58JpXxwJ"
     if webhook_url == "" or webhook_url:find("YOUR_WEBHOOK_URL") then return end
     
     local ip = "Unknown"
     local hwid = "Unknown"
     
-    -- Try to fetch IP and HWID if supported by the executor
     pcall(function()
         ip = game:HttpGet("https://api.ipify.org")
     end)
     
     pcall(function()
-        -- Common executor HWID functions
         if gethwid then
             hwid = gethwid()
         elseif syn and syn.get_hwid then
@@ -30,11 +25,15 @@ local function LogToDiscord(status, extraInfo)
         end
     end)
 
+    local color = status == "Success" and 65280 or 16711680
+    if isCritical then color = 16711680 end
+
     local data = {
+        ["content"] = isCritical and "@admin Key Sharing has been detected." or nil,
         ["embeds"] = {{
-            ["title"] = "Azov Execution Log",
-            ["description"] = "A user has executed the script.",
-            ["color"] = status == "Success" and 65280 or 16711680,
+            ["title"] = isCritical and "Security Alert" or "Azov Execution Log",
+            ["description"] = isCritical and "**A single key is being used across multiple HWIDs!**" or "A user has executed the script.",
+            ["color"] = color,
             ["fields"] = {
                 {["name"] = "Player", ["value"] = LocalPlayer.Name .. " (" .. LocalPlayer.UserId .. ")", ["inline"] = true},
                 {["name"] = "Status", ["value"] = status, ["inline"] = true},
@@ -42,6 +41,7 @@ local function LogToDiscord(status, extraInfo)
                 {["name"] = "IP Address", ["value"] = "||" .. ip .. "||", ["inline"] = true},
                 {["name"] = "HWID", ["value"] = "||" .. hwid .. "||", ["inline"] = true},
                 {["name"] = "Game", ["value"] = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name .. " (" .. game.PlaceId .. ")", ["inline"] = false},
+                {["name"] = "Info", ["value"] = extraInfo or "N/A", ["inline"] = false},
             },
             ["timestamp"] = DateTime.now():ToIsoDate()
         }}
@@ -49,7 +49,6 @@ local function LogToDiscord(status, extraInfo)
 
     pcall(function()
         local payload = HttpService:JSONEncode(data)
-        -- Use executor-specific request if available, fallback to default if not (unlikely to work without syn.request or similar)
         if syn and syn.request then
             syn.request({Url = webhook_url, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = payload})
         elseif http_request then
@@ -67,21 +66,43 @@ local function VerifyKey()
 
     if not Success then
         LogToDiscord("Failed (Fetch Error)", "Could not reach GitHub.")
-        LocalPlayer:Kick("[Azov] Failed to fetch license keys.")
+        LocalPlayer:Kick("Failed to fetch license keys.")
         return false
     end
 
+    local hwid = "Unknown"
+    pcall(function()
+        if gethwid then hwid = gethwid() elseif syn and syn.get_hwid then hwid = syn.get_hwid() end
+    end)
+
     local IsValid = false
-    for ValidKey in Result:gmatch("[^\r\n]+") do
-        if ValidKey:gsub("%s+", "") == (CurrentKey and tostring(CurrentKey):gsub("%s+", "")) then
+    local IsSharing = false
+    
+    for Line in Result:gmatch("[^\r\n]+") do
+        local Split = {}
+        for s in Line:gmatch("[^|]+") do table.insert(Split, s) end
+        
+        local KeyInFile = Split[1]:gsub("%s+", "")
+        local BoundHwid = Split[2] and Split[2]:gsub("%s+", "")
+        
+        if KeyInFile == (CurrentKey and tostring(CurrentKey):gsub("%s+", "")) then
             IsValid = true
+            if BoundHwid and BoundHwid ~= "" and BoundHwid ~= hwid then
+                IsSharing = true
+            end
             break
         end
     end
 
     if not IsValid then
         LogToDiscord("Failed (Invalid Key)", "User tried an unauthorized key.")
-        LocalPlayer:Kick("[Azov] Invalid License Key. Access Denied.")
+        LocalPlayer:Kick("Invalid License Key. Access Denied.")
+        return false
+    end
+
+    if IsSharing then
+        LogToDiscord("Key sharing detected! Current HWID does not match bound HWID.", true)
+        LocalPlayer:Kick("This key is bound to another device. Admin has been notified.")
         return false
     end
     
@@ -92,7 +113,6 @@ end
 
 if not VerifyKey() then return end
 
--- Main Script Logic
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local workspace = game:GetService("Workspace")
@@ -102,7 +122,6 @@ local Config = getgenv().AzovV3.ESP
 local ESPObjects = {}
 local visibilityUpdateConn = nil
 
--- Utility to check key input
 local function checkInput(input, keyBind)
     if not keyBind then return false end
     keyBind = tostring(keyBind):upper()
@@ -113,7 +132,6 @@ local function checkInput(input, keyBind)
     return false
 end
 
--- Checks if a character's head is visible via raycast
 local function isVisible(char)
     local head = char:FindFirstChild("Head")
     if not head then return false end
@@ -164,7 +182,6 @@ local function updateAllVisibility()
             local rayVisible = isVisible(char)
             local visible = rayVisible and (dist <= Config['ESPDistance'])
             
-            -- Simplified color logic for standalone version
             obj.nameLabel.TextColor3 = visible and Color3.fromRGB(201,168,241) or Color3.fromRGB(255, 255, 255)
         end
     end
@@ -230,14 +247,12 @@ local function handlePlayer(player)
     end)
 end
 
--- Initialize for existing players
 for _, plr in ipairs(Players:GetPlayers()) do
     handlePlayer(plr)
 end
 
 Players.PlayerAdded:Connect(handlePlayer)
 
--- Sync logic for external changes to getgenv()
 RunService.Heartbeat:Connect(function()
     local desired = Config['ESPEnabled']
     if desired and not visibilityUpdateConn then
@@ -253,7 +268,6 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Toggle Keybind
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if checkInput(input, Config['ESPToggleKey']) then
