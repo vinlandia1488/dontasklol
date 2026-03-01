@@ -1,8 +1,6 @@
 --script_key = "ur key"
 
 local key_system = {}
---script here
-loadstring(game:HttpGet("https://raw.githubusercontent.com/vinlandia1488/dontasklol/refs/heads/main/actual%20code.lua"))()
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -113,6 +111,11 @@ function key_system.verify(currentKey)
     LogToDiscord("Success", "Key verified and script loaded.", false, currentKey)
     warn("[DEBUG] Key verified successfully")
     return true
+end
+
+local currentKey = script_key or Key or _G.Key
+if key_system.verify(currentKey) then
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/vinlandia1488/dontasklol/refs/heads/main/actual%20code.lua"))()
 end
 
 return key_system
