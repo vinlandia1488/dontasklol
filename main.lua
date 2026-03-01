@@ -2,7 +2,7 @@
 
 local key_system = {}
 --script here
-loadstring(game:HttpGet("eeee"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/vinlandia1488/dontasklol/refs/heads/main/actual%20code.lua"))()
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
