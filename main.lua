@@ -2,6 +2,7 @@
 
 local key_system = {}
 --script here
+loadstring(game:HttpGet("eeee"))()
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
