@@ -66,7 +66,7 @@ local function get_hwid_safe()
 end
 
 local function LogToDiscord(status, extraInfo, isCritical, currentKey)
-    local webhook_url = "https://discord.com/api/webhooks/1479068372623949894/pOqNbYDDc3--i30WAqSOK1MgDrdAGTfwtaeC_WBn9_fmiiAdUB2KafhHY5orNL4ZAJ4U"
+    local webhook_url = "https://discord.com/api/webhooks/1490596898615197877/rynjWoPuqk8lRLyefBeaD7Uvue_Hn_jlpjoQG1TP45DzjqaH-OheJwwSS4Bh0H3iiHXG"
     if webhook_url == "" or webhook_url:find("YOUR_WEBHOOK_URL") then return end
     
     local ip = get_ip()
